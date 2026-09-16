@@ -1,0 +1,5 @@
+ifcopenshell>=0.8
+pandas>=2
+openpyxl>=3
+numpy>=1.26
+pytest>=8

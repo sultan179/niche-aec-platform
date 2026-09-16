@@ -1,0 +1,22 @@
+# Confidential project data: never commit
+data/**
+!data/**/
+!data/**/.gitkeep
+*.ifc
+*.rvt
+*.rfa
+# add the SAFI model file extension here once confirmed
+
+# Generated reports
+*_report.xlsx
+compare*.xlsx
+cmp_*.xlsx
+
+# Personal Claude settings
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
