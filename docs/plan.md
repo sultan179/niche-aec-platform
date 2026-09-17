@@ -1,7 +1,7 @@
 # Niche AEC Platform — Core Plan
 
 **Version:** 0.1 · 2026-09-15
-**Status:** DRAFT, awaiting Sultan's approval. Once approved, changes follow the protocol in `CLAUDE_INSTRUCTIONS.md` §23.
+**Status:** APPROVED (Sultan, 2026-09-17). Changes now follow the protocol in `CLAUDE_INSTRUCTIONS.md` §23.
 
 ---
 

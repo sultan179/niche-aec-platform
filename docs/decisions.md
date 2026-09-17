@@ -84,3 +84,12 @@ All decisions below were reached in the design discussion between Sultan, Claude
 - **Chosen:** allow only bounded AI early (section-name suggestions, diff explanations). No multi-agent in the MVP.
 - **Why:** grid errors propagate, the payoff is low, and there's no measured need for multiple agents.
 - **Plan impact:** core.
+
+### D-013 · G0 verdict: Fail (GlobalId gives no signal via SAFI)
+
+- **Status:** APPROVED (Sultan), 2026-09-17.
+- **Evidence:** real test on `Kingsway Apartments - 1 floor test.ifc` (not design reasoning, unlike D-001–D-012). Revit's IFC export is 100% GlobalId/Tag stable on re-export. SAFI is IFC-import-only (no export). SAFI discards the source Revit identity on import — the imported member's Name field shows SAFI's own numbering (`#5184 : W Shapes:W1`, truncated), not the Revit Tag/GlobalId. 78–83% of members come in floating or half-connected. Columns/`IfcMember` elements are missing section profiles; 2/4 materials went unrecognized by SAFI. Full detail: `docs/evidence/safi-integration.md`.
+- **Chosen:** G0 = **Fail**, per the §7 outcome scale in `CLAUDE_INSTRUCTIONS.md` — GlobalId isn't usable even as a weak signal on the SAFI side, since nothing of it survives import.
+- **Why:** matching must rely entirely on the Niche mapping layer (§8: hard filters, geometry/grid normalization, scoring) — exactly the fallback case that architecture already assumed.
+- **Rejected:** Full or Partial verdicts — both require some surviving GlobalId signal, which doesn't exist post-SAFI-import.
+- **Plan impact:** none — confirms §8's existing layered matching design was necessary, not a change to `plan.md`.
