@@ -23,6 +23,7 @@ Drafter interview: PDF modeled in Revit, rebuilt by hand in SAFI, results applie
 - **FACT (2026-09-18):** tested a second, properly-connected file (`data/ifc/Cleaned/`) from the drafter. SAFI import connectivity: **0/172 floating, 36/172 (21%) cantilever, ~79% fully connected** — inverse of the first (messy) file's 78–83% broken rate. **Proves the earlier connectivity failure was a modeling-quality issue, not a SAFI/IFC platform limitation.**
 - **FACT (2026-09-18):** matcher re-run on this second file — the coordinate transform and SectionMapping dictionary both **generalized cleanly** (22/24 beams matched, zero new mismatches). But SAFI's connectivity-generation **splits well-connected beams into multiple sub-segments** (79→172 members), which the current 1:1-only matcher can't handle — 2 beams/2 SAFI elements fell out of matching because of it. This is the "merge SAFI segments" step plan.md §8 already names but isn't built yet.
 - Columns/`IfcMember` elements still have no section profile in Revit's IFC export, on both files tested — looks systemic, not file-specific.
+- **`data/ifc/` reorganized (2026-09-18):** `Cleaned/` holds the current/active test files (the properly-connected Kingsway export + its SDNF + SAFI report); `Archived/` holds the older messy-file test artifacts. Still git-ignored/confidential either way.
 - Details: `docs/evidence/safi-integration.md`.
 
 ---
