@@ -4,8 +4,13 @@ Format reverse-engineered from a real export — see docs/evidence/safi-integrat
 import re
 
 def parse_sdnf(path):
-    with open(path) as f:
-        lines = [l.rstrip("\n") for l in f]
+    try:
+        with open(path) as f:
+            lines = [l.rstrip("\n") for l in f]
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"SDNF export not found at {path!r} — did you re-export it from SAFI?"
+        )
 
     members = []
     i = 0
@@ -17,12 +22,28 @@ def parse_sdnf(path):
             continue
 
         category, name = m.groups()
+        record_start = i  # for error messages
+
+        if i + 2 >= len(lines):
+            raise ValueError(f"SDNF record starting at line {record_start + 1} is truncated (file ends early)")
+
         section_line = lines[i + 1]
         coord_line = lines[i + 2]
 
-        section, material = re.findall(r'"([^"]*)"', section_line)[:2]
+        quoted = re.findall(r'"([^"]*)"', section_line)
+        if len(quoted) < 2:
+            raise ValueError(
+                f"SDNF record at line {record_start + 1} ('{name}'): expected section+material "
+                f"quoted fields on the next line, got: {section_line!r}"
+            )
+        section, material = quoted[:2]
 
         nums = [float(x) for x in coord_line.split()]
+        if len(nums) < 9:
+            raise ValueError(
+                f"SDNF record at line {record_start + 1} ('{name}'): expected >=9 numeric fields "
+                f"on the coordinate line, got {len(nums)}: {coord_line!r}"
+            )
         # dir_x dir_y dir_z, start_x start_y start_z, end_x end_y end_z, then 2 trailing
         sx, sy, sz, ex, ey, ez = nums[3:9]
 

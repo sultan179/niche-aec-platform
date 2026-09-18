@@ -17,7 +17,12 @@ CATEGORY_MAP = {"IfcColumn": "Column", "IfcBeam": "Beam", "IfcMember": "Beam"}  
 
 
 def load_revit():
-    df = pd.read_excel(REVIT_REPORT, sheet_name="Physical")
+    try:
+        df = pd.read_excel(REVIT_REPORT, sheet_name="Physical")
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Revit report not found at {REVIT_REPORT!r} — run ifc_inspect.py inspect first"
+        )
     elements = []
     for _, r in df.iterrows():
         if r["ifc_class"] not in CATEGORY_MAP:
@@ -36,8 +41,14 @@ def load_revit():
 
 
 def load_safi():
+    try:
+        records = parse_sdnf(SAFI_SDNF)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"SAFI export not found at {SAFI_SDNF!r} — export SDNF from SAFI first"
+        )
     elements = []
-    for r in parse_sdnf(SAFI_SDNF):
+    for r in records:
         elements.append({
             "id": r["safi_name"],
             "category": r["category"],
