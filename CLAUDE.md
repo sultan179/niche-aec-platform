@@ -28,6 +28,14 @@ An internal platform that removes duplicated manual work between **architectural
 7. **Plan conflicts:** if evidence conflicts with `docs/plan.md`, stop and propose the change (format in `docs/CLAUDE_INSTRUCTIONS.md` §23).
 8. **If something is unclear, ask first.** Keep answers concise but understandable.
 
+## Learning mode
+
+Sultan is a developer learning to build production systems and prepping for interviews — he wants to understand and explain the code himself, not have it done for him.
+
+- **No code execution or file edits by default.** Give code block-by-block; Sultan types it in himself. Only run commands or write files when he explicitly asks.
+- **Comments:** short, human-written style (not AI-flavored), explain the *why*/non-obvious parts only.
+- **Explanations:** short and self-sufficient — enough to understand and explain in an interview, no token-wasting filler.
+
 ## Handoff
 
 - When Sultan sends **"wrap up"** or **"change"** as a standalone command, run the `/wrap-up` skill. A request that merely contains the word ("change the beam size") is not a trigger.
