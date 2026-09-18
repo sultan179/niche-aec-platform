@@ -16,12 +16,12 @@ def revit_to_safi(x, y, z):
 CATEGORY_MAP = {"IfcColumn": "Column", "IfcBeam": "Beam", "IfcMember": "Beam"}  # HYPOTHESIS on IfcMember
 
 
-def load_revit():
+def load_revit(path=REVIT_REPORT):
     try:
-        df = pd.read_excel(REVIT_REPORT, sheet_name="Physical")
+        df = pd.read_excel(path, sheet_name="Physical")
     except FileNotFoundError:
         raise FileNotFoundError(
-            f"Revit report not found at {REVIT_REPORT!r} — run ifc_inspect.py inspect first"
+            f"Revit report not found at {path!r} — run ifc_inspect.py inspect first"
         )
     elements = []
     for _, r in df.iterrows():
@@ -40,12 +40,12 @@ def load_revit():
     return elements
 
 
-def load_safi():
+def load_safi(path=SAFI_SDNF):
     try:
-        records = parse_sdnf(SAFI_SDNF)
+        records = parse_sdnf(path)
     except FileNotFoundError:
         raise FileNotFoundError(
-            f"SAFI export not found at {SAFI_SDNF!r} — export SDNF from SAFI first"
+            f"SAFI export not found at {path!r} — export SDNF from SAFI first"
         )
     elements = []
     for r in records:
@@ -110,8 +110,10 @@ def match(revit_elements, safi_elements, tolerance_m=0.5):
 
 
 if __name__ == "__main__":
-    revit_elements = load_revit()
-    safi_elements = load_safi()
+    import sys
+    revit_path, safi_path = (sys.argv[1], sys.argv[2]) if len(sys.argv) > 2 else (REVIT_REPORT, SAFI_SDNF)
+    revit_elements = load_revit(revit_path)
+    safi_elements = load_safi(safi_path)
     matched, revit_unmatched, safi_unmatched = match(revit_elements, safi_elements)
 
     print(f"Revit elements: {len(revit_elements)} | SAFI elements: {len(safi_elements)}")

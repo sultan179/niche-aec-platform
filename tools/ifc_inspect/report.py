@@ -12,9 +12,9 @@ STATUS_BY_SECTION_RESULT = {
 }
 
 
-def build_report():
-    revit = {e["id"]: e for e in load_revit()}
-    safi = {e["id"]: e for e in load_safi()}
+def build_report(revit_path=None, safi_path=None):
+    revit = {e["id"]: e for e in (load_revit(revit_path) if revit_path else load_revit())}
+    safi = {e["id"]: e for e in (load_safi(safi_path) if safi_path else load_safi())}
     matched, revit_unmatched, safi_unmatched = match(list(revit.values()), list(safi.values()))
     section_mapping = load_mapping()
 
@@ -65,8 +65,13 @@ def build_report():
 
 
 if __name__ == "__main__":
-    df = build_report()
-    out = r"C:\Users\SultanArafat\niche-aec-platform\data\ifc\reconciliation_report.xlsx"
+    import sys
+    if len(sys.argv) > 3:
+        revit_path, safi_path, out = sys.argv[1], sys.argv[2], sys.argv[3]
+    else:
+        revit_path, safi_path = None, None
+        out = r"C:\Users\SultanArafat\niche-aec-platform\data\ifc\reconciliation_report.xlsx"
+    df = build_report(revit_path, safi_path)
     df.to_excel(out, index=False)
     print(df["status"].value_counts())
     print(f"report: {out}")

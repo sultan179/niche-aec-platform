@@ -29,6 +29,19 @@
 - The round-trip GlobalId test in `docs/evidence/ifc-test-protocol.md` (`compare R1.ifc S1.ifc`) **cannot run as written** — there is no `S1.ifc`. The protocol needs revision: either read GlobalId/Tag preservation from SDNF/KISS text output directly, or accept that matching must rely on **Tag** and geometry (position/grid), not GlobalId, for the SAFI side.
 - Whether SDNF/KISS preserve Revit's `Tag` value is now the key open question for identity matching (HYPOTHESIS: worth checking before assuming Tag survives export any better than GlobalId would have).
 
+## 2026-09-18 — Connectivity is a modeling-quality issue, not a platform limitation
+
+- **FACT (source: drafter, 2026-09-18):** SAFI's connectivity tolerance is approximately 200mm (drafter's estimate, not an exact spec). Revit→IFC→SAFI import doesn't always auto-connect in their normal workflow. This matters — our earlier tests only tried 10mm and 50mm tolerances, far below what's actually used in practice.
+- **FACT (source: drafter-provided "cleaned"/properly-connected file, `data/ifc/Cleaned/Kingsway Apartments - 1 floor test.ifc`, same building as the original test):** 79 physical elements (24 beam/23 column/32 `IfcMember` — fewer Members than the original 48). Same systemic gap as before: only beams have a section profile name; columns/Members don't.
+- **FACT (source: SAFI import report, `Safi Report Cleaned Import.rtf`):** **0/172 floating members, 36/172 (21%) cantilever** — roughly 79% fully connected. This is essentially the inverse of the original file's 78–83% broken rate.
+- **Conclusion:** the earlier connectivity failure was a **real modeling-quality issue in that specific source file**, not a SAFI/IFC platform limitation. When the Revit model is properly connected before export, SAFI's import connectivity is excellent. This substantially changes the outlook on Problem A/B — the integration path is workable when the source model is clean.
+
+## 2026-09-18 — Matcher validated on a second file; new gap found (segment splitting)
+
+- **FACT (source: `match.py`/`report.py` re-run against the Cleaned file's SDNF export, `2026_05_13_Kingsway_V1 - TEST, 1 floor Connected.sdnf`):** the 90° coordinate transform and the SectionMapping dictionary (both built from the first file) **generalized cleanly** to this second, independently-connected export — 22/24 beams matched, zero new section mismatches.
+- **FACT:** SAFI's connectivity generation **splits well-connected beams into multiple shorter sub-segments** at real connection points (the raw physical member count went from 79 to 172 after connectivity processing — same splitting behavior seen on the first file, now much more pronounced since more real connections exist). This broke 2 beams' 1:1 matching — the current matcher has no way to recognize "one Revit beam = several SAFI segments."
+- **Implication (RECOMMENDATION):** this is exactly the "merge SAFI segments" normalization step `CLAUDE_INSTRUCTIONS.md` §8 already names as required, not a new architectural surprise. Next build priority: 1:N segment-merging support in the matcher.
+
 ## 2026-09-17 (continued) — Revit export stability
 
 - **FACT (source: `ifc_inspect.py compare`, real re-export test on `Kingsway Apartments - 1 floor test.ifc` vs an unchanged re-export `..._V2.ifc`):** **100% GlobalId match (95/95) and 100% Tag match (95/95)** across all classes (`IfcBeam`, `IfcColumn`, `IfcMember`). Revit's IFC export is GlobalId-stable and Tag-stable for this project/version, when nothing in the model changes. (Note: this contradicts the synthetic fixture's assumption of unstable re-export GUIDs — that fixture was a deliberately pessimistic test case, not a claim about real Revit behavior.)
