@@ -110,6 +110,107 @@ def match(revit_elements, safi_elements, tolerance_m=0.5):
     return matched, revit_unmatched, safi_unmatched
 
 
+# --- chain matching (1:N / N:N): handles cases where a real small gap in the
+# source model - e.g. a secondary member framing in without landing exactly on
+# a beam - causes SAFI to split one Revit run into a different number of
+# segments (see docs/evidence/safi-integration.md, 2026-09-22). ---
+
+JOIN_TOL_M = 0.01  # real internal connections in this data are exact to sub-mm; this just absorbs float noise
+
+
+def build_chains(elements, join_tol_m=JOIN_TOL_M):
+    """Group same-category elements into connected runs via shared endpoints.
+    Returns a list of {"ids": [...], "category": ..., "outer_points": [...]}.
+    A normal run has exactly 2 outer points (the two free ends).
+    """
+    from collections import defaultdict
+
+    by_category = defaultdict(list)
+    for e in elements:
+        by_category[e["category"]].append(e)
+
+    chains = []
+    for category, els in by_category.items():
+        parent = {e["id"]: e["id"] for e in els}
+
+        def find(x):
+            while parent[x] != x:
+                x = parent[x]
+            return x
+
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        for i, a in enumerate(els):
+            for b in els[i + 1:]:
+                if (dist(a["start"], b["start"]) <= join_tol_m or
+                        dist(a["start"], b["end"]) <= join_tol_m or
+                        dist(a["end"], b["start"]) <= join_tol_m or
+                        dist(a["end"], b["end"]) <= join_tol_m):
+                    union(a["id"], b["id"])
+
+        groups = defaultdict(list)
+        for e in els:
+            groups[find(e["id"])].append(e)
+
+        for group in groups.values():
+            point_count = defaultdict(int)
+
+            def key(p, decimals=3):
+                return tuple(round(v, decimals) for v in p)
+
+            for e in group:
+                point_count[key(e["start"])] += 1
+                point_count[key(e["end"])] += 1
+            outer_points = [p for p, c in point_count.items() if c == 1]
+            chains.append({
+                "ids": [e["id"] for e in group],
+                "category": category,
+                "outer_points": outer_points,
+            })
+    return chains
+
+
+def chain_distance(a, b):
+    # only a simple run (exactly 2 free ends) has a well-defined span to compare
+    if len(a["outer_points"]) != 2 or len(b["outer_points"]) != 2:
+        return None
+    p1, p2 = a["outer_points"]
+    q1, q2 = b["outer_points"]
+    straight = dist(p1, q1) + dist(p2, q2)
+    flipped = dist(p1, q2) + dist(p2, q1)
+    return min(straight, flipped)
+
+
+def match_chains(revit_elements, safi_elements, tolerance_m=0.5):
+    """Match leftover (already-unmatched) elements at the chain level.
+    Skips the case where both chains are single elements - that's exactly
+    what match() already tried and failed."""
+    revit_chains = build_chains(revit_elements)
+    safi_chains = build_chains(safi_elements)
+
+    matched_chains = []
+    used_safi = set()
+    for rc in revit_chains:
+        candidates = [
+            (si, sc) for si, sc in enumerate(safi_chains)
+            if sc["category"] == rc["category"] and si not in used_safi
+            and not (len(rc["ids"]) == 1 and len(sc["ids"]) == 1)
+        ]
+        best_si, best_sc, best_d = None, None, None
+        for si, sc in candidates:
+            d = chain_distance(rc, sc)
+            if d is not None and (best_d is None or d < best_d):
+                best_si, best_sc, best_d = si, sc, d
+        if best_sc is not None and best_d <= tolerance_m:
+            matched_chains.append((rc["ids"], best_sc["ids"], best_d))
+            used_safi.add(best_si)
+
+    return matched_chains
+
+
 if __name__ == "__main__":
     import sys
     revit_path, safi_path = (sys.argv[1], sys.argv[2]) if len(sys.argv) > 2 else (REVIT_REPORT, SAFI_SDNF)
