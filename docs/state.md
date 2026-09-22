@@ -8,7 +8,7 @@
 ## Phase and objective
 
 - **Current phase:** 1, MVP-1 (read-only reconciliation report). G0 exit gate passed 2026-09-17.
-- **Current objective:** root cause of segment splitting found (Rigid Members). Next: widen outer-endpoint tolerance in the matcher to absorb it; grow SectionMapping.
+- **Current objective:** 1:N/N:N chain matching built and verified. Next: grow SectionMapping with more real data; decide G1 criteria with the drafter.
 
 ---
 
@@ -25,6 +25,7 @@ Drafter interview: PDF modeled in Revit, rebuilt by hand in SAFI, results applie
 - **FACT (2026-09-22):** fixed a real correctness bug — `parse_sdnf.py` discarded the SDNF piece-ID number, using SAFI's display name as the unique key instead. Since SAFI can reuse the same name across two different pieces (proven on real data), this silently dropped elements from every matcher run. Fixed: `piece_id` is now the key, `name` kept separately for readability.
 - **FACT (2026-09-22) — root cause of segment splitting found (verified, not guessed):** the mystery split points are a **real small gap that already exists in Revit's own model** — a secondary diagonal member (`IfcMember`, profile `W16X26`) frames in near the main beam but doesn't land exactly on its line. Proven by cross-referencing SAFI's 0mm-tolerance joint coordinates against Revit's exported data: elevations match to 4 decimal places (3788.41mm ≈ 3.7884m). SAFI's ~200mm connectivity tolerance decides whether to bridge that real gap with an auto-inserted **Rigid Member** (`Offset/Dummy` type, excluded from SDNF since it's not real steel — why `find_junctions.py` found nothing) or leave it visibly disconnected. Not an IFC/SAFI pipeline artifact. **Resolved without needing the drafter** — my first hypothesis ("IFC coordinate rounding") was wrong and got corrected by checking real data.
 - **FACT (2026-09-22, drafter):** the real workflow is: draft in Revit → export IFC → import into SAFI → **connections always come in broken to some degree** → drafter manually fixes them in SAFI, or rebuilds from scratch. Always true, not an edge case. The "native SAFI file" we treated as a clean reference is **the drafter's manually-corrected result**, not proof that clean Revit modeling alone yields a connected import. Reinforces plan.md's Problem A/B rather than undermining them.
+- **FACT (2026-09-22):** built and verified 1:N/N:N chain matching (`build_chains`/`match_chains` in `match.py`) — groups leftover same-category elements into connected runs, matches by outer-endpoint distance. Verified on the real case: the 2-beam/3-segment run now matches correctly at 0.0mm offset. Report counts moved exactly as predicted (`missing in SAFI` 34→32, `no Revit source found` 3→0).
 - Columns/`IfcMember` elements still have no section profile in Revit's IFC export, on both files tested — looks systemic, not file-specific.
 - **`data/ifc/` reorganized (2026-09-18):** `Cleaned/` holds the current/active test files (the properly-connected Kingsway export + its SDNF + SAFI report); `Archived/` holds the older messy-file test artifacts. Still git-ignored/confidential either way.
 - Details: `docs/evidence/safi-integration.md`.
@@ -48,7 +49,7 @@ See `docs/decisions.md`, D-001–D-013. Latest: **D-013, G0 = Fail** — matchin
 
 ## Active risks
 
-- 1:N segment merging not built — matcher misses beams SAFI splits when it inserts Rigid Members to bridge IFC-import coordinate gaps. Root cause now known (2026-09-22); fix is a tolerance widening, not detection of the rigid links themselves (they aren't in SDNF).
+- Chain matching only tested on one real case (2 Revit beams / 3 SAFI segments) — needs more real projects to confirm it generalizes.
 - Section/material name mismatch needs the dictionary to keep growing with more real data — only 6 pairs confirmed-by-evidence so far, none yet drafter/engineer-signed-off.
 - Columns/Members systematically missing section profiles in Revit's export — root cause unknown.
 - Only two files tested — not enough for labeling/evaluation yet.
@@ -71,7 +72,7 @@ See `docs/decisions.md`, D-001–D-013. Latest: **D-013, G0 = Fail** — matchin
 
 ## Next actions
 
-1. Build 1:N segment-merging in the matcher: group collinear connected SAFI segments into runs, match against Revit runs with a wider outer-endpoint tolerance (to absorb Rigid-Member-sized gaps, bounded by SAFI's ~200mm tolerance).
-2. Grow the SectionMapping dictionary as more real projects are tested; get drafter/engineer sign-off on existing entries.
-3. With the drafter: root-cause why columns/`IfcMember` lack section profiles in Revit's export.
+1. Grow the SectionMapping dictionary as more real projects are tested; get drafter/engineer sign-off on existing entries.
+2. With the drafter: root-cause why columns/`IfcMember` lack section profiles in Revit's export.
+3. Test chain matching on a second/third real project to confirm it generalizes beyond the one case it was built for.
 4. Decide G1 criteria (target precision/recall) with the drafter.
