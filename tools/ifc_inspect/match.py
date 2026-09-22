@@ -50,7 +50,8 @@ def load_safi(path=SAFI_SDNF):
     elements = []
     for r in records:
         elements.append({
-            "id": r["safi_name"],
+            "id": r["piece_id"],      # SDNF record number - guaranteed unique, unlike safi_name
+            "name": r["safi_name"],
             "category": r["category"],
             "section": r["section"],
             "material": r["material"],

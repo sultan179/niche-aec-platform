@@ -16,12 +16,12 @@ def parse_sdnf(path):
     i = 0
     while i < len(lines):
         line = lines[i]
-        m = re.match(r'^\d+ 10 0 0 "(\w+)" "(.+?)" 1$', line)
+        m = re.match(r'^(\d+) 10 0 0 "(\w+)" "(.+?)" 1$', line)
         if not m:
             i += 1
             continue
 
-        category, name = m.groups()
+        piece_id, category, name = m.groups()
         record_start = i  # for error messages
 
         if i + 2 >= len(lines):
@@ -48,6 +48,8 @@ def parse_sdnf(path):
         sx, sy, sz, ex, ey, ez = nums[3:9]
 
         members.append({
+            "piece_id": piece_id,    # the SDNF record number - the only guaranteed-unique key;
+                                      # safi_name can repeat across pieces (seen in real data)
             "safi_name": name,       # e.g. "#114 : HSS Square-C" — SAFI's own numbering, not Revit's
             "category": category,    # "Beam" or "Column"
             "section": section,
