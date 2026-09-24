@@ -1,5 +1,8 @@
 """Unit tests for geometry matching and chain matching (match.py)."""
-from match import revit_to_safi, dist, pair_distance, match, build_chains, chain_distance, match_chains
+from match import (
+    revit_to_safi, dist, pair_distance, match, build_chains, chain_distance,
+    match_chains, find_ambiguous, explain_unmatched,
+)
 
 
 def elem(id, category, start, end):
@@ -134,3 +137,64 @@ def test_match_chains_skips_both_single_element_chains():
     revit = [elem("r1", "Beam", (0, 0, 0), (10, 0, 0))]
     safi = [elem("s1", "Beam", (0, 0, 0), (10, 0, 0))]
     assert match_chains(revit, safi) == []
+
+
+def test_find_ambiguous_flags_revit_side_with_two_close_candidates():
+    revit = [elem("r1", "Beam", (0, 0, 0), (10, 0, 0))]
+    safi = [
+        elem("s1", "Beam", (0.05, 0, 0), (10, 0, 0)),
+        elem("s2", "Beam", (0.10, 0, 0), (10, 0, 0)),
+    ]
+    ambiguous_revit, ambiguous_safi = find_ambiguous(revit, safi, tolerance_m=0.5)
+    assert ambiguous_revit == {"r1"}
+    assert ambiguous_safi == set()  # each safi element only has r1 as a candidate at all
+
+
+def test_find_ambiguous_flags_safi_side_with_two_close_candidates():
+    revit = [
+        elem("r1", "Beam", (0.05, 0, 0), (10, 0, 0)),
+        elem("r2", "Beam", (0.10, 0, 0), (10, 0, 0)),
+    ]
+    safi = [elem("s1", "Beam", (0, 0, 0), (10, 0, 0))]
+    ambiguous_revit, ambiguous_safi = find_ambiguous(revit, safi, tolerance_m=0.5)
+    assert ambiguous_safi == {"s1"}
+    assert ambiguous_revit == set()
+
+
+def test_find_ambiguous_empty_for_clean_unique_match():
+    revit = [elem("r1", "Beam", (0, 0, 0), (10, 0, 0))]
+    safi = [elem("s1", "Beam", (0, 0, 0), (10, 0, 0))]
+    ambiguous_revit, ambiguous_safi = find_ambiguous(revit, safi, tolerance_m=0.5)
+    assert ambiguous_revit == set() and ambiguous_safi == set()
+
+
+def test_explain_unmatched_no_candidates_of_category():
+    e = elem("r1", "Beam", (0, 0, 0), (10, 0, 0))
+    assert explain_unmatched(e, []) == "no Beam elements exist on the other side"
+    other_category_only = [elem("s1", "Column", (0, 0, 0), (10, 0, 0))]
+    assert explain_unmatched(e, other_category_only) == "no Beam elements exist on the other side"
+
+
+def test_explain_unmatched_nearest_exceeds_tolerance():
+    e = elem("r1", "Beam", (0, 0, 0), (10, 0, 0))
+    far = [elem("s1", "Beam", (20, 0, 0), (30, 0, 0))]
+    assert explain_unmatched(e, far, tolerance_m=0.5) == (
+        "nearest candidate is 40.00m away, exceeds 0.50m tolerance"
+    )
+
+
+def test_explain_unmatched_lost_tiebreak_reflects_a_real_unmatched_case():
+    # r1's nearest is s1, but s1's own nearest is r2 - and r2 actually matches s2.
+    # s1 ends up completely unmatched too, not "taken" by a closer element - proven
+    # by running match() first, not assumed (code review 2026-09-24).
+    r1 = elem("r1", "Beam", (0, 0, 0), (0, 0, 0))
+    r2 = elem("r2", "Beam", (0.10, 0.05, 0), (0.10, 0.05, 0))
+    s1 = elem("s1", "Beam", (0.10, 0, 0), (0.10, 0, 0))
+    s2 = elem("s2", "Beam", (0.10, 0.07, 0), (0.10, 0.07, 0))
+
+    matched, ru, su = match([r1, r2], [s1, s2], tolerance_m=0.5)
+    assert ru == ["r1"] and su == ["s1"]  # s1 is genuinely unmatched, not stolen by someone who then matched
+
+    assert explain_unmatched(r1, [s1, s2], tolerance_m=0.5) == (
+        "nearest candidate s1 is within tolerance (0.20m) but wasn't a mutual best match"
+    )

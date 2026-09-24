@@ -110,6 +110,44 @@ def match(revit_elements, safi_elements, tolerance_m=0.5):
     return matched, revit_unmatched, safi_unmatched
 
 
+def find_ambiguous(revit_elements, safi_elements, tolerance_m=0.5):
+    """Ids that have more than one same-category candidate within tolerance
+    on the other side. A mutual-best match might confidently pick one, but
+    if a second candidate was also close enough to accept, it wasn't a
+    clean unique choice and a human should double check it.
+    """
+    ambiguous_revit_ids = set()
+    for a in revit_elements:
+        candidates = [b for b in safi_elements if b["category"] == a["category"]]
+        within = [b for b in candidates if pair_distance(a, b) <= tolerance_m]
+        if len(within) >= 2:
+            ambiguous_revit_ids.add(a["id"])
+
+    ambiguous_safi_ids = set()
+    for b in safi_elements:
+        candidates = [a for a in revit_elements if a["category"] == b["category"]]
+        within = [a for a in candidates if pair_distance(a, b) <= tolerance_m]
+        if len(within) >= 2:
+            ambiguous_safi_ids.add(b["id"])
+
+    return ambiguous_revit_ids, ambiguous_safi_ids
+
+
+def explain_unmatched(element, other_side_elements, tolerance_m=0.5):
+    """Deterministic reason `element` has no match among other_side_elements."""
+    candidates = [o for o in other_side_elements if o["category"] == element["category"]]
+    if not candidates:
+        return f"no {element['category']} elements exist on the other side"
+
+    nearest = min(candidates, key=lambda o: pair_distance(element, o))
+    d = pair_distance(element, nearest)
+    if d > tolerance_m:
+        return f"nearest candidate is {d:.2f}m away, exceeds {tolerance_m:.2f}m tolerance"
+    # don't claim the candidate "matched someone else" - it may have lost its own
+    # tie-break and be unmatched too (see docs/evidence, code review 2026-09-24)
+    return f"nearest candidate {nearest['id']} is within tolerance ({d:.2f}m) but wasn't a mutual best match"
+
+
 # --- chain matching (1:N / N:N): handles cases where a real small gap in the
 # source model - e.g. a secondary member framing in without landing exactly on
 # a beam - causes SAFI to split one Revit run into a different number of

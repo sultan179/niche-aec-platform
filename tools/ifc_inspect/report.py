@@ -2,7 +2,7 @@
 this run establishes the first baseline once the engineer approves it.
 """
 import pandas as pd
-from match import load_revit, load_safi, match, match_chains
+from match import load_revit, load_safi, match, match_chains, find_ambiguous, explain_unmatched
 from section_mapping import check_section
 
 STATUS_BY_SECTION_RESULT = {
@@ -16,6 +16,10 @@ def build_report(revit_path=None, safi_path=None):
     revit = {e["id"]: e for e in (load_revit(revit_path) if revit_path else load_revit())}
     safi = {e["id"]: e for e in (load_safi(safi_path) if safi_path else load_safi())}
     matched, revit_unmatched, safi_unmatched = match(list(revit.values()), list(safi.values()))
+    # more than one same-category candidate was within tolerance for these ids -
+    # the pairing wasn't a clean unique choice, flag it instead of looking identical
+    # to a confident match (plan.md §7 names "ambiguous" as its own status)
+    ambiguous_revit_ids, ambiguous_safi_ids = find_ambiguous(list(revit.values()), list(safi.values()))
 
     rows = []
     for revit_id, safi_id, offset_m in matched:
@@ -23,6 +27,10 @@ def build_report(revit_path=None, safi_path=None):
         # section names only need formatting normalization now, not a metric<->imperial
         # dictionary, as long as SAFI's export stays in imperial (see §8: "never rely on string equality")
         result = check_section(r["section"], s["section"])
+        is_ambiguous = revit_id in ambiguous_revit_ids or safi_id in ambiguous_safi_ids
+        # ambiguity is about match confidence, section result is about section shape -
+        # keep both signals visible instead of letting one silently hide the other
+        # (code review 2026-09-24)
         rows.append({
             "status": STATUS_BY_SECTION_RESULT[result],
             "revit_id": revit_id,
@@ -33,6 +41,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": s["section"],
             "revit_material": r["material"],
             "safi_material": s["material"],
+            "reason": "ambiguous: another candidate was also within tolerance for this pairing" if is_ambiguous else None,
         })
 
     # some leftovers are really one continuous run split differently on each side
@@ -59,6 +68,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": "; ".join(s_sections),
             "revit_material": "; ".join(sorted({revit[i]["material"] for i in revit_ids if isinstance(revit[i]["material"], str)})),
             "safi_material": "; ".join(sorted({safi[i]["material"] for i in safi_ids})),
+            "reason": None,
         })
 
     for revit_id in revit_unmatched:
@@ -75,6 +85,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": None,
             "revit_material": r["material"],
             "safi_material": None,
+            "reason": explain_unmatched(r, list(safi.values())),
         })
 
     for safi_id in safi_unmatched:
@@ -91,6 +102,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": s["section"],
             "revit_material": None,
             "safi_material": s["material"],
+            "reason": explain_unmatched(s, list(revit.values())),
         })
 
     return pd.DataFrame(rows)
