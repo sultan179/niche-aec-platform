@@ -23,7 +23,7 @@ def normalize_section(s):
     s = s.replace(" ", "")
     s = s.replace(UNICODE_MULTIPLY, "X")
     s = s.replace("-", "")
-    return s
+    return s or None  # "" and whitespace-only both mean "no profile", same as None
 
 
 def check_section(revit_section, safi_section):
