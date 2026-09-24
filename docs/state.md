@@ -8,7 +8,7 @@
 ## Phase and objective
 
 - **Current phase:** 1, MVP-1 (read-only reconciliation report). G0 exit gate passed 2026-09-17.
-- **Current objective:** three-way diff mechanism (plan.md §6/§11) built and verified end-to-end on 3 of 5 real-world change paths. Real scope confirmed narrower than assumed: **section shape is the only thing the drafter cares about being reconciled** — materials are parked. Next: grow SectionMapping with more real data; decide G1 criteria with the drafter.
+- **Current objective:** three-way diff mechanism (plan.md §6/§11) built and verified end-to-end on 3 of 5 real-world change paths. Real scope confirmed narrower than assumed: **section shape is the only thing the drafter cares about being reconciled** — materials are parked. The old SectionMapping dictionary is gone too — SAFI exporting in imperial + simple formatting normalization replaces it. Next: decide G1 criteria with the drafter; test chain matching on a 2nd/3rd real project.
 
 ---
 
@@ -17,7 +17,8 @@
 Drafter interview: PDF modeled in Revit, rebuilt by hand in SAFI, results applied to Revit by hand (print-and-tick). Revit/SAFI IDs differ; coordinates close but not identical; gridlines match.
 
 - **FACT:** SAFI has no API, IFC-import-only. Revit's IFC export is GlobalId/Tag-stable, but **SAFI discards Revit's identity on import** — own numbering replaces it. ID-based matching isn't viable (D-013, G0 = Fail).
-- **FACT:** built a geometry matcher (`parse_sdnf.py`, `match.py`, `report.py`, `section_mapping.py`). Coordinate transform: 90° rotation, `SAFI_x=Revit_y, SAFI_y=-Revit_x`, no offset. SectionMapping dictionary (6 pairs, imperial↔metric) built from real matched data, unconfirmed until sign-off. 1:N/N:N chain matching built and verified on one real case (2 Revit beams / 3 SAFI segments).
+- **FACT:** built a geometry matcher (`parse_sdnf.py`, `match.py`, `report.py`, `section_mapping.py`). Coordinate transform: 90° rotation, `SAFI_x=Revit_y, SAFI_y=-Revit_x`, no offset. 1:N/N:N chain matching built and verified on one real case (2 Revit beams / 3 SAFI segments).
+- **FACT (2026-09-24):** SAFI can export SDNF in **imperial** (Revit-style section names), removing the metric↔imperial translation problem entirely — only formatting (case, spacing) differs now. Found and fixed a real bug: the imperial export's coordinates are in inches, not mm; `parse_sdnf.py` now reads the SDNF's own units line instead of hardcoding mm. `section_mapping.py`'s old CSV dictionary (6 pairs, required sign-off) is replaced by `normalize_section()` — strips whitespace/case/stray dashes/unicode `×`, leaves digits and `/` untouched. Verified on real data: 22/22 real matched sections now compare exactly equal, zero mismatches; all 4 tests still pass. `section_mapping.csv`/`build_section_mapping.py` are now orphaned (left in place, unreferenced). **Going forward, SAFI's SDNF export must be in imperial, not metric.**
 - **FACT (2026-09-18, drafter):** SAFI's connectivity tolerance is ~200mm; import never auto-connects fully — drafter always manually fixes connections in SAFI or rebuilds from scratch. A clean Revit model reduces but doesn't eliminate this.
 - **FACT (2026-09-22, verified not guessed):** SAFI's connectivity-generation splits well-connected Revit beams into multiple SDNF sub-segments at real (sub-200mm) gaps that already exist in Revit's model — not an IFC/SAFI artifact. Root cause confirmed by cross-referencing SAFI's 0mm-tolerance joint coordinates against Revit's exported data (exact match to 4 decimals). This is what chain matching (above) now handles.
 - **FACT (2026-09-22, drafter):** SAFI is the sizing source of truth for **sections** — decisions finalize in SAFI analysis, drafter manually syncs Revit's section afterward. No automated check exists today; that's the gap the reconciliation report fills.
@@ -48,7 +49,8 @@ See `docs/decisions.md`, D-001–D-013. Latest: **D-013, G0 = Fail** — matchin
 ## Active risks
 
 - Chain matching only tested on one real case — needs more real projects to confirm it generalizes.
-- SectionMapping dictionary only has 6 pairs from one project, none drafter/engineer-signed-off yet.
+- Section comparison now depends on SAFI exporting SDNF in imperial — if the drafter's normal export workflow defaults to metric, this breaks silently unless re-checked.
+- Only case/spacing formatting differences confirmed so far (one project) — other real-world formatting quirks may still turn up.
 - Columns/Members systematically missing section profiles in Revit's export — root cause unknown.
 - Three-way diff can't track SAFI-only elements (no Revit match) across baselines — no key proven stable across SAFI re-exports.
 - `new`/`missing` diff paths are simulation-only, not yet confirmed with a real add/delete edit.
@@ -73,9 +75,9 @@ See `docs/decisions.md`, D-001–D-013. Latest: **D-013, G0 = Fail** — matchin
 
 ## Next actions
 
-1. Grow the SectionMapping dictionary as more real projects are tested; get drafter/engineer sign-off on existing entries.
-2. With the drafter: root-cause why columns/`IfcMember` lack section profiles in Revit's export.
-3. Test chain matching on a second/third real project to confirm it generalizes beyond the one case it was built for.
-4. Decide G1 criteria (target precision/recall) with the drafter.
+1. With the drafter: root-cause why columns/`IfcMember` lack section profiles in Revit's export.
+2. Test chain matching on a second/third real project to confirm it generalizes beyond the one case it was built for.
+3. Decide G1 criteria (target precision/recall) with the drafter.
+4. Confirm with the drafter that exporting SDNF in imperial is a workflow they'll actually do going forward, not just a one-off test.
 5. Optionally test the three-way diff's `new`/`missing` paths against a real add/delete edit.
 6. Consider dropping `revit_material`/`safi_material` from `report.py`'s output now that material sync is confirmed out of scope (not done yet, harmless to leave).

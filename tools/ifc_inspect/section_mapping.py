@@ -1,26 +1,33 @@
-"""SectionMapping dictionary lookup (plan.md §8: 'its own subsystem,
-never rely on string equality'). Every row starts unconfirmed until a
-drafter or engineer signs off — see docs/decisions.md.
+"""Section comparison (plan.md §8: 'never rely on string equality').
+SAFI can export sections in imperial to match Revit's own naming
+convention (confirmed 2026-09-24) - once both sides use the same catalog,
+the only real difference left is formatting (case, spacing, stray
+characters), not a metric<->imperial translation. See
+docs/evidence/safi-integration.md for the investigation that established
+this - the old imperial<->metric SectionMapping dictionary is no longer
+needed as long as SAFI's export stays in imperial.
 """
-import csv
-import os
 
-DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "section_mapping.csv")
+UNICODE_MULTIPLY = "×"  # "×" - common from copy-pasting a spec sheet/PDF
 
 
-def load_mapping(path=None):
-    path = path or DEFAULT_PATH
-    mapping = {}
-    with open(path, newline="") as f:
-        for row in csv.DictReader(f):
-            mapping[row["imperial"]] = row
-    return mapping
+def normalize_section(s):
+    """Normalize formatting-only differences (case, spaces, stray dashes,
+    the unicode multiply sign) so W18X40 == w 18x40 == W18×40. Digits,
+    decimals, and '/' (e.g. HSS wall thickness) are left untouched - those
+    are real, meaningful differences, not formatting noise.
+    """
+    if not isinstance(s, str):
+        return None
+    s = s.strip().upper()
+    s = s.replace(" ", "")
+    s = s.replace(UNICODE_MULTIPLY, "X")
+    s = s.replace("-", "")
+    return s
 
 
-def check_section(revit_section, safi_section, mapping):
-    if not isinstance(revit_section, str) or not revit_section:
+def check_section(revit_section, safi_section):
+    r_norm = normalize_section(revit_section)
+    if r_norm is None:
         return "unmapped"  # no Revit profile to check against (e.g. columns in this export)
-    entry = mapping.get(revit_section)
-    if entry is None:
-        return "unmapped"
-    return "match" if entry["metric"] == safi_section else "mismatch"
+    return "match" if r_norm == normalize_section(safi_section) else "mismatch"

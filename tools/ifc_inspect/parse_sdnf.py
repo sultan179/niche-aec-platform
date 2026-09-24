@@ -3,6 +3,12 @@ Format reverse-engineered from a real export — see docs/evidence/safi-integrat
 """
 import re
 
+# SAFI can export SDNF in either unit - the file declares which one on its own
+# units line (e.g. '"millimeters" 48' or '"inches" 48'), so read that instead
+# of assuming millimeters always.
+UNIT_TO_METRES = {"millimeters": 0.001, "inches": 0.0254}
+
+
 def parse_sdnf(path):
     try:
         with open(path) as f:
@@ -12,14 +18,28 @@ def parse_sdnf(path):
             f"SDNF export not found at {path!r} — did you re-export it from SAFI?"
         )
 
+    unit_scale = None
     members = []
     i = 0
     while i < len(lines):
         line = lines[i]
+
+        m_units = re.match(r'^"(\w+)" \d+$', line)
+        if m_units and m_units.group(1) in UNIT_TO_METRES:
+            unit_scale = UNIT_TO_METRES[m_units.group(1)]
+            i += 1
+            continue
+
         m = re.match(r'^(\d+) 10 0 0 "(\w+)" "(.+?)" 1$', line)
         if not m:
             i += 1
             continue
+
+        if unit_scale is None:
+            raise ValueError(
+                f"SDNF record at line {i + 1}: no recognized units line "
+                f"(e.g. '\"millimeters\" 48') found before the first member record"
+            )
 
         piece_id, category, name = m.groups()
         record_start = i  # for error messages
@@ -54,8 +74,8 @@ def parse_sdnf(path):
             "category": category,    # "Beam" or "Column"
             "section": section,
             "material": material,
-            "start_m": (sx / 1000, sy / 1000, sz / 1000),
-            "end_m": (ex / 1000, ey / 1000, ez / 1000),
+            "start_m": (sx * unit_scale, sy * unit_scale, sz * unit_scale),
+            "end_m": (ex * unit_scale, ey * unit_scale, ez * unit_scale),
         })
         i += 6  # each record is 6 lines
 

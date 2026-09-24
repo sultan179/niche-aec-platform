@@ -3,12 +3,12 @@ this run establishes the first baseline once the engineer approves it.
 """
 import pandas as pd
 from match import load_revit, load_safi, match, match_chains
-from section_mapping import load_mapping, check_section
+from section_mapping import check_section
 
 STATUS_BY_SECTION_RESULT = {
     "match": "matched",
     "mismatch": "matched - verify section",
-    "unmapped": "matched - section not in dictionary",
+    "unmapped": "matched - no Revit profile to check",
 }
 
 
@@ -16,14 +16,13 @@ def build_report(revit_path=None, safi_path=None):
     revit = {e["id"]: e for e in (load_revit(revit_path) if revit_path else load_revit())}
     safi = {e["id"]: e for e in (load_safi(safi_path) if safi_path else load_safi())}
     matched, revit_unmatched, safi_unmatched = match(list(revit.values()), list(safi.values()))
-    section_mapping = load_mapping()
 
     rows = []
     for revit_id, safi_id, offset_m in matched:
         r, s = revit[revit_id], safi[safi_id]
-        # material names differ by convention (e.g. Revit "01 Steel Main Framing" vs SAFI "A36"),
-        # so flag mismatches for a human to check rather than trusting string equality (see §8: "never rely on string equality")
-        result = check_section(r["section"], s["section"], section_mapping)
+        # section names only need formatting normalization now, not a metric<->imperial
+        # dictionary, as long as SAFI's export stays in imperial (see §8: "never rely on string equality")
+        result = check_section(r["section"], s["section"])
         rows.append({
             "status": STATUS_BY_SECTION_RESULT[result],
             "revit_id": revit_id,
