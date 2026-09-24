@@ -1,6 +1,6 @@
 # Niche AEC Project State
 
-**Updated:** 2026-09-23
+**Updated:** 2026-09-24
 **Core plan:** `docs/plan.md` v0.1 (APPROVED, 2026-09-17)
 
 ---
@@ -27,6 +27,7 @@ Drafter interview: PDF modeled in Revit, rebuilt by hand in SAFI, results applie
 - **FACT (2026-09-23) — verified end-to-end on 3 of 5 real-world change paths**, each isolated to exactly one matched element with everything else unchanged: Revit-only section change → `changed in Revit only`; SAFI-only section change → `changed in SAFI only`; same element changed on both sides → `conflict - changed in both`. `new` and `missing` remain simulation-only (would need a live add/delete edit).
 - Columns/`IfcMember` elements still have no section profile in Revit's IFC export, on both files tested — looks systemic, root cause unknown.
 - `data/ifc/`: `Cleaned/` holds current test files; `Archived/` holds older messy-file artifacts; `Cleaned/diff-test-artifacts/` holds today's three-way-diff test exports. All git-ignored/confidential.
+- **FACT/DECISION (2026-09-24):** re-thought how G1 (precision/recall) actually gets measured. Plan.md §7's "drafter confirms/corrects every match" would recreate the exact manual print-and-tick burden the tool exists to remove — rejected as the approach. Instead: **precision** is largely self-verifying (a sub-millimeter, category-matched geometry pair essentially can't be a coincidental false match — no row-by-row human review needed); **recall** only needs the drafter's eyes on the small set of genuinely unresolved elements (today: a subset of 32 "missing in SAFI," most already explained by the known profile-loss issue), not a full report review. A second, zero-drafter-effort measurement method: real controlled edits (like the 2026-09-23 girder/member tests) where we already know the ground truth because we made the change ourselves. No labeling infrastructure was built for this — the collection mechanism was never confirmed with the drafter, and building it risked repeating the MaterialMapping mistake (assuming a process nobody asked for).
 - Details: `docs/evidence/safi-integration.md`.
 
 ---
@@ -69,7 +70,7 @@ See `docs/decisions.md`, D-001–D-013. Latest: **D-013, G0 = Fail** — matchin
 
 ## Next decision gate
 
-**G0: DECIDED — Fail** (D-013). **Next gate: G1** (MVP-1 precision/recall target, drafter trusts the report) — in progress, not yet met.
+**G0: DECIDED — Fail** (D-013). **Next gate: G1** (MVP-1 precision/recall target, drafter trusts the report) — in progress, not yet met. Measurement approach (2026-09-24): precision via geometric tightness (largely self-verifying), recall via a small targeted review of unresolved elements + controlled real-edit tests — not full drafter review of every match.
 
 ---
 
@@ -77,7 +78,7 @@ See `docs/decisions.md`, D-001–D-013. Latest: **D-013, G0 = Fail** — matchin
 
 1. With the drafter: root-cause why columns/`IfcMember` lack section profiles in Revit's export.
 2. Test chain matching on a second/third real project to confirm it generalizes beyond the one case it was built for.
-3. Decide G1 criteria (target precision/recall) with the drafter.
+3. Decide G1 criteria (target precision/recall numbers) with the drafter — measurement approach already decided (see above), just needs the actual thresholds agreed.
 4. Confirm with the drafter that exporting SDNF in imperial is a workflow they'll actually do going forward, not just a one-off test.
 5. Optionally test the three-way diff's `new`/`missing` paths against a real add/delete edit.
 6. Consider dropping `revit_material`/`safi_material` from `report.py`'s output now that material sync is confirmed out of scope (not done yet, harmless to leave).
