@@ -30,7 +30,6 @@ def build_report(revit_path=None, safi_path=None):
         is_ambiguous = revit_id in ambiguous_revit_ids or safi_id in ambiguous_safi_ids
         # ambiguity is about match confidence, section result is about section shape -
         # keep both signals visible instead of letting one silently hide the other
-        # (code review 2026-09-24)
         rows.append({
             "status": STATUS_BY_SECTION_RESULT[result],
             "revit_id": revit_id,
@@ -41,6 +40,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": s["section"],
             "revit_material": r["material"],
             "safi_material": s["material"],
+            "ambiguous": is_ambiguous,
             "reason": "ambiguous: another candidate was also within tolerance for this pairing" if is_ambiguous else None,
         })
 
@@ -68,6 +68,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": "; ".join(s_sections),
             "revit_material": "; ".join(sorted({revit[i]["material"] for i in revit_ids if isinstance(revit[i]["material"], str)})),
             "safi_material": "; ".join(sorted({safi[i]["material"] for i in safi_ids})),
+            "ambiguous": False,
             "reason": None,
         })
 
@@ -85,6 +86,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": None,
             "revit_material": r["material"],
             "safi_material": None,
+            "ambiguous": False,
             "reason": explain_unmatched(r, list(safi.values())),
         })
 
@@ -102,6 +104,7 @@ def build_report(revit_path=None, safi_path=None):
             "safi_section": s["section"],
             "revit_material": None,
             "safi_material": s["material"],
+            "ambiguous": False,
             "reason": explain_unmatched(s, list(revit.values())),
         })
 

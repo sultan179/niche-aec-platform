@@ -15,6 +15,8 @@ def revit_to_safi(x, y, z):
 
 CATEGORY_MAP = {"IfcColumn": "Column", "IfcBeam": "Beam", "IfcMember": "Beam"}  # HYPOTHESIS on IfcMember
 
+MATCH_TOL_M = 0.5  # default acceptance tolerance, shared by match(), find_ambiguous(), explain_unmatched(), match_chains()
+
 
 def load_revit(path=REVIT_REPORT):
     try:
@@ -72,7 +74,7 @@ def pair_distance(a, b):
     return min(straight, flipped)
 
 
-def match(revit_elements, safi_elements, tolerance_m=0.5):
+def match(revit_elements, safi_elements, tolerance_m=MATCH_TOL_M):
     # nearest match per side, keep only mutual best (both sides agree it's their closest)
     revit_best = {}
     for a in revit_elements:
@@ -110,30 +112,28 @@ def match(revit_elements, safi_elements, tolerance_m=0.5):
     return matched, revit_unmatched, safi_unmatched
 
 
-def find_ambiguous(revit_elements, safi_elements, tolerance_m=0.5):
+def _ids_with_multiple_candidates(elements, other_side, tolerance_m):
+    ids = set()
+    for e in elements:
+        candidates = [o for o in other_side if o["category"] == e["category"]]
+        within = [o for o in candidates if pair_distance(e, o) <= tolerance_m]
+        if len(within) >= 2:
+            ids.add(e["id"])
+    return ids
+
+
+def find_ambiguous(revit_elements, safi_elements, tolerance_m=MATCH_TOL_M):
     """Ids that have more than one same-category candidate within tolerance
     on the other side. A mutual-best match might confidently pick one, but
     if a second candidate was also close enough to accept, it wasn't a
     clean unique choice and a human should double check it.
     """
-    ambiguous_revit_ids = set()
-    for a in revit_elements:
-        candidates = [b for b in safi_elements if b["category"] == a["category"]]
-        within = [b for b in candidates if pair_distance(a, b) <= tolerance_m]
-        if len(within) >= 2:
-            ambiguous_revit_ids.add(a["id"])
-
-    ambiguous_safi_ids = set()
-    for b in safi_elements:
-        candidates = [a for a in revit_elements if a["category"] == b["category"]]
-        within = [a for a in candidates if pair_distance(a, b) <= tolerance_m]
-        if len(within) >= 2:
-            ambiguous_safi_ids.add(b["id"])
-
+    ambiguous_revit_ids = _ids_with_multiple_candidates(revit_elements, safi_elements, tolerance_m)
+    ambiguous_safi_ids = _ids_with_multiple_candidates(safi_elements, revit_elements, tolerance_m)
     return ambiguous_revit_ids, ambiguous_safi_ids
 
 
-def explain_unmatched(element, other_side_elements, tolerance_m=0.5):
+def explain_unmatched(element, other_side_elements, tolerance_m=MATCH_TOL_M):
     """Deterministic reason `element` has no match among other_side_elements."""
     candidates = [o for o in other_side_elements if o["category"] == element["category"]]
     if not candidates:
@@ -143,8 +143,7 @@ def explain_unmatched(element, other_side_elements, tolerance_m=0.5):
     d = pair_distance(element, nearest)
     if d > tolerance_m:
         return f"nearest candidate is {d:.2f}m away, exceeds {tolerance_m:.2f}m tolerance"
-    # don't claim the candidate "matched someone else" - it may have lost its own
-    # tie-break and be unmatched too (see docs/evidence, code review 2026-09-24)
+    # don't claim the candidate "matched someone else" - it may have lost its own tie-break and be unmatched too
     return f"nearest candidate {nearest['id']} is within tolerance ({d:.2f}m) but wasn't a mutual best match"
 
 
@@ -222,7 +221,7 @@ def chain_distance(a, b):
     return min(straight, flipped)
 
 
-def match_chains(revit_elements, safi_elements, tolerance_m=0.5):
+def match_chains(revit_elements, safi_elements, tolerance_m=MATCH_TOL_M):
     """Match leftover (already-unmatched) elements at the chain level.
     Skips the case where both chains are single elements - that's exactly
     what match() already tried and failed."""

@@ -185,8 +185,10 @@ def test_explain_unmatched_nearest_exceeds_tolerance():
 
 def test_explain_unmatched_lost_tiebreak_reflects_a_real_unmatched_case():
     # r1's nearest is s1, but s1's own nearest is r2 - and r2 actually matches s2.
-    # s1 ends up completely unmatched too, not "taken" by a closer element - proven
-    # by running match() first, not assumed (code review 2026-09-24).
+    # s1 ends up completely unmatched too, not "taken" by a closer element -
+    # proven by running match() first, not assumed.
+    # start==end (zero-length "point" elements) is deliberate here - only the
+    # endpoint distances matter for this tie-break scenario, not member length.
     r1 = elem("r1", "Beam", (0, 0, 0), (0, 0, 0))
     r2 = elem("r2", "Beam", (0.10, 0.05, 0), (0.10, 0.05, 0))
     s1 = elem("s1", "Beam", (0.10, 0, 0), (0.10, 0, 0))

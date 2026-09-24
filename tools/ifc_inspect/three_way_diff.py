@@ -14,6 +14,15 @@ def _norm(v):
     return v if isinstance(v, str) else None
 
 
+def _is_ambiguous(row):
+    # .get() is deliberate, not [] - an older baseline saved before this
+    # feature existed won't have an "ambiguous" column at all, and should
+    # read as False rather than raise.
+    if row is None:
+        return False
+    return bool(row.get("ambiguous", False))
+
+
 def diff_against_baseline(baseline_df, current_df):
     baseline_by_id = {row["revit_id"]: row for _, row in baseline_df.iterrows() if row["revit_id"]}
     current_by_id = {row["revit_id"]: row for _, row in current_df.iterrows() if row["revit_id"]}
@@ -41,6 +50,16 @@ def diff_against_baseline(baseline_df, current_df):
             else:
                 status = "unchanged"
 
-        rows.append({"revit_id": revit_id, "three_way_status": status, "baseline": base, "current": cur})
+        # ambiguity is about match confidence, not what changed - keep it a
+        # separate signal instead of letting it hide the real three_way_status
+        current_ambiguous = _is_ambiguous(cur)
+        rows.append({
+            "revit_id": revit_id,
+            "three_way_status": status,
+            "baseline": base,
+            "current": cur,
+            "currently_ambiguous": current_ambiguous,
+            "newly_ambiguous": current_ambiguous and not _is_ambiguous(base),
+        })
 
     return rows
