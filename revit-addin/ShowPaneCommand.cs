@@ -9,6 +9,7 @@ public class ShowPaneCommand : IExternalCommand
 {
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
+        App.UiApp = commandData.Application;
         var pane = commandData.Application.GetDockablePane(App.PaneId);
         if (pane.IsShown())
             pane.Hide();

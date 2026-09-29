@@ -10,6 +10,7 @@
             <TextBox x:Name="SafiPathBox" Margin="0,0,0,6"/>
             <Button x:Name="RunButton" Content="Run Reconciliation" Click="RunButton_Click" Margin="0,0,0,8"/>
         </StackPanel>
-        <DataGrid x:Name="ResultsGrid" AutoGenerateColumns="True" IsReadOnly="True"/>
+        <DataGrid x:Name="ResultsGrid" AutoGenerateColumns="True" IsReadOnly="True"
+                  SelectionMode="Single" SelectionChanged="ResultsGrid_SelectionChanged"/>
     </DockPanel>
 </UserControl>

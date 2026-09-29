@@ -37,4 +37,9 @@ public class ReconciliationRow
 
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
+
+    // 32-char lowercase hex, no dashes (matches Guid.ToString("N")) - null for
+    // chain-matched or unmatched-on-Revit-side rows, which have no single valid IFC GUID
+    [JsonPropertyName("revit_guid")]
+    public string? RevitGuid { get; set; }
 }
