@@ -164,6 +164,8 @@ Modular backend: Projects · Snapshots · Identity · Mapping · Diff · Approva
 
 **The G0 result may reshape Phases 1–3.** For example, an IFC path could replace most of the manual SAFI rebuild.
 
+**D-014 (2026-09-29):** Phase 1 and Phase 2 now run in parallel, not sequentially — the Phase 2 Revit pane build starts before G1 formally closes, and drafter review happens against the pane instead of the standalone report.
+
 ---
 
 ## 9. Success metrics

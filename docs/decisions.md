@@ -85,6 +85,14 @@ All decisions below were reached in the design discussion between Sultan, Claude
 - **Why:** grid errors propagate, the payoff is low, and there's no measured need for multiple agents.
 - **Plan impact:** core.
 
+### D-014 · Start Phase 2 (Revit pane) before G1 formally closes
+
+- **Status:** APPROVED (Sultan), 2026-09-29.
+- **Chosen:** begin building the Phase 2 Revit dockable pane now, instead of waiting for G1 (drafter trusts the report, thresholds agreed) to formally close first. Drafter review happens against the in-Revit pane rather than the standalone Excel/PDF report.
+- **Why:** Sultan's call — wants the drafter reviewing results inside Revit directly, not a separate spreadsheet.
+- **Rejected:** the original `plan.md` §8 ordering (G1 must close before Phase 2 starts).
+- **Plan impact:** reorders §8 — G1 (report trust/thresholds) and Phase 2 (pane build) now proceed in parallel instead of sequentially. Phase 1's matching/diff pipeline (`tools/ifc_inspect/`, 44 tests) is unchanged and becomes what the pane consumes.
+
 ### D-013 · G0 verdict: Fail (GlobalId gives no signal via SAFI)
 
 - **Status:** APPROVED (Sultan), 2026-09-17.

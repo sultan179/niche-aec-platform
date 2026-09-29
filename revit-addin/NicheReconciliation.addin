@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Niche Reconciliation</Name>
+    <Assembly>C:\Users\SultanArafat\niche-aec-platform\revit-addin\bin\Debug\net8.0-windows\NicheReconciliation.dll</Assembly>
+    <AddInId>b3e1a1a0-6f21-4d5e-9c3a-1f2b3c4d5e70</AddInId>
+    <FullClassName>NicheReconciliation.App</FullClassName>
+    <VendorId>NICHE</VendorId>
+    <VendorDescription>Niche AEC Platform</VendorDescription>
+  </AddIn>
+</RevitAddIns>

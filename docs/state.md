@@ -7,8 +7,8 @@
 
 ## Phase and objective
 
-- **Current phase:** 1, MVP-1 (read-only reconciliation report). G0 exit gate passed 2026-09-17.
-- **Current objective:** the matching/diff pipeline is technically solid and tested (44 tests, was 0 at the start of today). Scope is confirmed narrower than assumed: **section shape is the only thing that needs reconciling** — materials are explicitly out of scope. What's left is almost entirely about the drafter: confirming his workflow, getting sign-off, testing on more real data. Nothing else can move without him.
+- **Current phase:** 1 (MVP-1 pipeline, done and tested) running in parallel with 2 (Revit pane) — see D-014, 2026-09-29. G0 exit gate passed 2026-09-17.
+- **Current objective:** **FACT (2026-09-29):** the Phase 2 Revit add-in's first read-only slice works end-to-end on real data, inside Revit — dockable pane, calls the existing Python pipeline as a subprocess, renders real matched/unmatched rows for the Kingsway project in a grid. No highlighting or approval flow yet (deliberately out of scope for this slice, per plan.md §8). Drafter review will happen against this pane instead of the standalone Excel/PDF report. G1 (precision/recall thresholds, drafter trust) stays open and will be assessed alongside the pane, not before it. Along the way, fixed a stale `match.py` default path (`data/ifc/` instead of `data/ifc/Cleaned/`, left over from the 2026-09-23 reorg) and a bug in the new JSON bridge script (`run_for_addin.py` emitted invalid bare `NaN` tokens; fixed with pandas' `to_json()`). 44/44 tests still pass.
 
 ---
 

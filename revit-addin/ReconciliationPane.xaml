@@ -1,0 +1,15 @@
+<UserControl x:Class="NicheReconciliation.ReconciliationPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="320">
+    <DockPanel Margin="8">
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="Revit inspect report (.xlsx, from ifc_inspect.py inspect)" FontWeight="Bold" TextWrapping="Wrap"/>
+            <TextBox x:Name="RevitPathBox" Margin="0,0,0,6"/>
+            <TextBlock Text="SAFI SDNF export path" FontWeight="Bold"/>
+            <TextBox x:Name="SafiPathBox" Margin="0,0,0,6"/>
+            <Button x:Name="RunButton" Content="Run Reconciliation" Click="RunButton_Click" Margin="0,0,0,8"/>
+        </StackPanel>
+        <DataGrid x:Name="ResultsGrid" AutoGenerateColumns="True" IsReadOnly="True"/>
+    </DockPanel>
+</UserControl>

@@ -23,3 +23,7 @@ __pycache__/
 
 # Windows OS artifacts
 desktop.ini
+
+# Revit add-in build output
+revit-addin/bin/
+revit-addin/obj/

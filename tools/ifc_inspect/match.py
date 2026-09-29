@@ -6,8 +6,8 @@ import math
 import pandas as pd
 from parse_sdnf import parse_sdnf
 
-REVIT_REPORT = r"C:\Users\SultanArafat\niche-aec-platform\data\ifc\Kingsway Apartments - 1 floor test_report.xlsx"
-SAFI_SDNF = r"C:\Users\SultanArafat\niche-aec-platform\data\ifc\Safi Export.sdnf"
+REVIT_REPORT = r"C:\Users\SultanArafat\niche-aec-platform\data\ifc\Cleaned\Kingsway Apartments - 1 floor test_report.xlsx"
+SAFI_SDNF = r"C:\Users\SultanArafat\niche-aec-platform\data\ifc\Cleaned\2026_05_13_Kingsway_V1 - TEST, 1 floor Connected.sdnf"
 
 # rotation found by comparing real column coordinates: SAFI_x = Revit_y, SAFI_y = -Revit_x
 def revit_to_safi(x, y, z):
