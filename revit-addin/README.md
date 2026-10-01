@@ -30,42 +30,58 @@ every Revit window, rebuild, then reopen.
 
 ## Using the pane
 
-1. **Revit report path**: an `.xlsx` file from `python ifc_inspect.py inspect
-   <ifc_file>` (run manually beforehand — see the main project README/CLAUDE.md
-   for that command). This is *not* the raw IFC file.
-2. **SAFI SDNF path**: a SAFI export, in **imperial** units (required, see
-   `docs/state.md`).
-3. Click **Run Reconciliation** — populates the results grid.
-4. **Click a row** to select/highlight the corresponding Revit element in the
+1. **SAFI SDNF path**: a SAFI export, in **imperial** units (required, see
+   `docs/state.md`) — type it or use **Browse...** to pick the `.sdnf` file.
+2. Click **Run Reconciliation** — reads the live Revit model (see "How it
+   runs" below) and populates the results grid. Requires an open document;
+   shows an error instead of running if there isn't one.
+3. **Click a row** to select/highlight the corresponding Revit element in the
    active view (no zoom/pan, just selection). Rows with no single Revit
    element (chain matches, "no Revit source found") don't highlight anything.
+4. **"Highlight All Unmatched Sections"** selects every element whose section
+   genuinely disagrees with SAFI (`matched - verify section` status — these
+   rows also render in red in the grid) all at once.
 
 ## How it runs
 
-- `RunButton_Click` (`ReconciliationPane.xaml.cs`) first calls
-  `SectionOverrideReader.WriteOverridesFile(doc)`, which reads every
-  Structural Column/Framing element's **live** section (`Section Name Key`
-  Type parameter, falling back to the Type's own name if that parameter has
-  no stored value) directly from the open document, and writes it to a temp
-  JSON file. This exists because **Revit's IFC exporter doesn't carry section
-  profiles for columns or for framing exported as `IfcMember`** (confirmed
-  2026-09-29 — modeled correctly, empty in every IFC export regardless).
-- `PipelineRunner.Run` then shells out to `tools/ifc_inspect/run_for_addin.py`
-  (a JSON wrapper around `report.py`'s `build_report()`), passing the Revit
-  report path, SAFI path, and that overrides file path.
-  `apply_section_overrides()` patches only the rows still stuck at "no Revit
-  profile to check" with the live data — never overwrites a real comparison.
-- The returned rows bind to the results grid. Note: **geometry, category, and
-  Revit-side element identity still come from the Revit report** (the IFC
-  export → `ifcopenshell` pipeline), not a live read — only the section field
-  was replaced. See `docs/state.md` for the open question of making the rest
-  live too.
-- Clicking a row calls `SectionOverrideReader`'s sibling,
-  `RevitElementLookup.BuildByGuid(doc)` (built once per "Run Reconciliation"
-  click), which maps every column/framing element's `ExportUtils.GetExportId`
-  guid to its `ElementId`. The row's `revit_guid` (expanded from the
-  compressed IFC GlobalId via `ifcopenshell.guid.expand()` in
-  `run_for_addin.py`) looks up that table and calls
+- `RunButton_Click` (`ReconciliationPane.xaml.cs`) calls
+  `LiveGeometryReader.WriteGeometryFile(doc)`, which reads every Structural
+  Column/Framing element **entirely from the live model** — geometry,
+  category, identity, and section — bypassing the IFC export/Excel-report
+  pipeline completely (2026-10-01). This closed the last gap from the
+  column/member section-profile fix: that fix only replaced the *section*
+  field; this replaces geometry, category, and identity too, so the whole
+  Revit side no longer depends on a stale, manually-regenerated report.
+  - **Geometry**: Structural Framing uses `LocationCurve` (straight endpoint
+    read). Structural Columns use `LocationPoint` — the real start/end come
+    from Base Level/Top Level elevation + offset parameters, not the point
+    itself. Confirmed via a real-data investigation before writing this (not
+    assumed): every column in this project is `LocationPoint`-based, every
+    framing element is `LocationCurve`-based, no other case exists here.
+  - **Section**: shared with the (now-fallback) `SectionOverrideReader.cs`
+    via `SectionOverrideReader.GetSection()` — same `Section Name Key` /
+    `Type.Name`-fallback logic (see the 2026-09-29 fact in `docs/state.md`).
+  - **Identity**: `ExportUtils.GetExportId(doc, el.Id)`, same mechanism row
+    highlighting already used.
+- `PipelineRunner.RunAsync` shells out to `tools/ifc_inspect/run_for_addin.py`
+  with this file as `live_geometry_path` (4th positional arg; `revit_path`/
+  `section_overrides_path` are always passed as empty strings now — see
+  below). When given, `live_geometry_path` takes over entirely —
+  `match.py`'s new `load_revit_live()` reads it, applies the same
+  `revit_to_safi()` transform and matching logic as the Excel path (verified
+  identical matching results against the Excel path on real data before
+  building the C# side).
+- There is **no more Excel/IFC-report fallback** — `RunButton_Click` requires
+  an open document (`doc != null`) and shows an error instead of running if
+  there isn't one, since the pane has no other way to get geometry.
+  `SectionOverrideReader.WriteOverridesFile()` and `run_for_addin.py`'s
+  `apply_section_overrides()` still exist (and are still tested) but aren't
+  called from the live flow.
+- Clicking a row calls `RevitElementLookup.BuildByGuid(doc)` (built once per
+  "Run Reconciliation" click), which maps every column/framing element's
+  `ExportUtils.GetExportId` guid to its `ElementId`. The row's `revit_guid`
+  (expanded from the compressed IFC GlobalId via `ifcopenshell.guid.expand()`
+  in `run_for_addin.py`) looks up that table and calls
   `uidoc.Selection.SetElementIds`.
 - `App.UiApp` (needed for the active document/selection, since the pane's
   WPF code has no other way to reach it) is captured via Revit's `Idling`

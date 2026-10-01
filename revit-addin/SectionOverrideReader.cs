@@ -27,16 +27,7 @@ public static class SectionOverrideReader
         var overrides = new List<SectionEntry>();
         foreach (var el in elements)
         {
-            var typeId = el.GetTypeId();
-            if (typeId == ElementId.InvalidElementId) continue;
-            var type = doc.GetElement(typeId);
-
-            // "Section Name Key" is sometimes an unset parameter that Revit's UI still
-            // displays a computed value for (confirmed 2026-09-29 via paramHasValue=false
-            // on a real element) - Type.Name carries the same designation either way
-            var section = type?.LookupParameter("Section Name Key")?.AsString();
-            if (string.IsNullOrWhiteSpace(section))
-                section = type?.Name;
+            var section = GetSection(doc, el);
             if (string.IsNullOrWhiteSpace(section)) continue;
 
             var guid = ExportUtils.GetExportId(doc, el.Id);
@@ -46,5 +37,22 @@ public static class SectionOverrideReader
         var path = Path.Combine(Path.GetTempPath(), $"niche_section_overrides_{System.Guid.NewGuid():N}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(overrides));
         return path;
+    }
+
+    // shared with LiveGeometryReader.cs, which needs the same section for its
+    // fully-live elements
+    public static string? GetSection(Document doc, Element el)
+    {
+        var typeId = el.GetTypeId();
+        if (typeId == ElementId.InvalidElementId) return null;
+        var type = doc.GetElement(typeId);
+
+        // "Section Name Key" is sometimes an unset parameter that Revit's UI still
+        // displays a computed value for (confirmed 2026-09-29 via paramHasValue=false
+        // on a real element) - Type.Name carries the same designation either way
+        var section = type?.LookupParameter("Section Name Key")?.AsString();
+        if (string.IsNullOrWhiteSpace(section))
+            section = type?.Name;
+        return section;
     }
 }

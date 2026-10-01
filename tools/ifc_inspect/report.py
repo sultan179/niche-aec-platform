@@ -11,9 +11,51 @@ STATUS_BY_SECTION_RESULT = {
     "unmapped": "matched - no Revit profile to check",
 }
 
+CHAIN_STATUS_BY_SECTION_RESULT = {
+    "match": "matched (chain)",
+    "mismatch": "matched (chain) - verify section",
+    "unmapped": "matched (chain) - no Revit profile to check",
+}
 
-def build_report(revit_path=None, safi_path=None):
-    revit = {e["id"]: e for e in (load_revit(revit_path) if revit_path else load_revit())}
+
+def chain_section_status(r_sections, s_sections):
+    """Section-agreement check for a chain match - a chain match only means the
+    segments connect geometrically (shared endpoints), it says nothing about
+    section. A clean chain has exactly one distinct section per side; anything
+    else (multiple distinct sections on either side, or a real mismatch between
+    the two single sections) means the pieces don't actually agree and a human
+    should look - the same scrutiny a single-element section mismatch already
+    gets, not a free pass just because it's a chain (bug caught by Sultan,
+    2026-10-01: a 2-floor Revit column split into 2 SAFI segments with
+    different sections still came back "matched (chain)" with no warning).
+    """
+    safi_inconsistent = len(s_sections) > 1
+    revit_inconsistent = len(r_sections) > 1
+
+    if len(r_sections) == 1 and len(s_sections) == 1:
+        result = check_section(r_sections[0], s_sections[0])
+    elif not r_sections:
+        # SAFI's own segments disagreeing with each other is a real finding
+        # regardless of whether Revit has a profile to compare against -
+        # "no Revit profile to check" must not swallow that (ecc code review,
+        # 2026-10-01: this was the exact same silent-swallow bug, one level in)
+        result = "mismatch" if safi_inconsistent else "unmapped"
+    else:
+        result = "mismatch"
+
+    reason = None
+    if result == "mismatch" and (revit_inconsistent or safi_inconsistent):
+        reason = f"chain sections aren't consistent across segments: revit={r_sections or ['?']}, safi={s_sections}"
+    return CHAIN_STATUS_BY_SECTION_RESULT[result], reason
+
+
+def build_report(revit_path=None, safi_path=None, revit_elements=None):
+    # revit_elements: pre-loaded elements (e.g. from match.load_revit_live()) -
+    # bypasses the Excel/IFC path entirely when given, skipping revit_path
+    if revit_elements is not None:
+        revit = {e["id"]: e for e in revit_elements}
+    else:
+        revit = {e["id"]: e for e in (load_revit(revit_path) if revit_path else load_revit())}
     safi = {e["id"]: e for e in (load_safi(safi_path) if safi_path else load_safi())}
     matched, revit_unmatched, safi_unmatched = match(list(revit.values()), list(safi.values()))
     # more than one same-category candidate was within tolerance for these ids -
@@ -58,8 +100,9 @@ def build_report(revit_path=None, safi_path=None):
         chained_safi_ids.update(safi_ids)
         r_sections = sorted({revit[i]["section"] for i in revit_ids if isinstance(revit[i]["section"], str)})
         s_sections = sorted({safi[i]["section"] for i in safi_ids})
+        status, reason = chain_section_status(r_sections, s_sections)
         rows.append({
-            "status": "matched (chain)",
+            "status": status,
             "revit_id": "; ".join(revit_ids),
             "safi_id": "; ".join(str(i) for i in safi_ids),
             "safi_name": "; ".join(safi[i]["name"] for i in safi_ids),
@@ -69,7 +112,7 @@ def build_report(revit_path=None, safi_path=None):
             "revit_material": "; ".join(sorted({revit[i]["material"] for i in revit_ids if isinstance(revit[i]["material"], str)})),
             "safi_material": "; ".join(sorted({safi[i]["material"] for i in safi_ids})),
             "ambiguous": False,
-            "reason": None,
+            "reason": reason,
         })
 
     for revit_id in revit_unmatched:

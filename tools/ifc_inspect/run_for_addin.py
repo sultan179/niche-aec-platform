@@ -1,13 +1,19 @@
 """JSON entrypoint for the Revit add-in. Same pipeline as report.py, just
 machine-readable stdout instead of an .xlsx file, so the C# side can parse it.
 
-Usage: python run_for_addin.py <revit_ifc_path> <safi_sdnf_path> [section_overrides_path]
+Usage: python run_for_addin.py <revit_ifc_path> <safi_sdnf_path> [section_overrides_path] [live_geometry_path]
+
+When live_geometry_path is given, it takes over entirely: Revit-side geometry,
+category, identity, and section all come from the live model (LiveGeometryReader.cs)
+instead of a stale IFC-exported report, and revit_path/section_overrides_path are
+ignored (section overrides would be redundant - live geometry already has sections).
 """
 import sys
 import json
 import ifcopenshell.guid
 from report import build_report, STATUS_BY_SECTION_RESULT
 from section_mapping import check_section
+from match import load_revit_live
 
 
 def expand_guid(revit_id):
@@ -53,8 +59,14 @@ def main(argv=None):
     revit_path = argv[0] if len(argv) >= 1 else None
     safi_path = argv[1] if len(argv) >= 2 else None
     overrides_path = argv[2] if len(argv) >= 3 else None
-    df = build_report(revit_path, safi_path)
-    df = apply_section_overrides(df, overrides_path)
+    live_geometry_path = argv[3] if len(argv) >= 4 else None
+
+    if live_geometry_path:
+        df = build_report(safi_path=safi_path, revit_elements=load_revit_live(live_geometry_path))
+    else:
+        df = build_report(revit_path, safi_path)
+        df = apply_section_overrides(df, overrides_path)
+
     df["revit_guid"] = df["revit_id"].apply(expand_guid)
     # df.to_json (not json.dumps(df.to_dict())) - stdlib json.dumps emits a bare
     # NaN token for missing values, which isn't valid JSON and .NET's parser rejects

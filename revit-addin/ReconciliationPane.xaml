@@ -3,14 +3,42 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              MinWidth="320">
     <DockPanel Margin="8">
-        <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Revit inspect report (.xlsx, from ifc_inspect.py inspect)" FontWeight="Bold" TextWrapping="Wrap"/>
-            <TextBox x:Name="RevitPathBox" Margin="0,0,0,6"/>
-            <TextBlock Text="SAFI SDNF export path" FontWeight="Bold"/>
-            <TextBox x:Name="SafiPathBox" Margin="0,0,0,6"/>
-            <Button x:Name="RunButton" Content="Run Reconciliation" Click="RunButton_Click" Margin="0,0,0,8"/>
-        </StackPanel>
-        <DataGrid x:Name="ResultsGrid" AutoGenerateColumns="True" IsReadOnly="True"
-                  SelectionMode="Single" SelectionChanged="ResultsGrid_SelectionChanged"/>
+        <Border DockPanel.Dock="Top" BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="0,0,0,8" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="SAFI SDNF export path" FontWeight="Bold"/>
+                <DockPanel Margin="0,0,0,6">
+                    <Button Content="Browse..." DockPanel.Dock="Right" Margin="4,0,0,0" Click="BrowseSafiButton_Click"/>
+                    <TextBox x:Name="SafiPathBox"/>
+                </DockPanel>
+                <Button x:Name="RunButton" Content="Run Reconciliation" Click="RunButton_Click" Margin="0,0,0,8"/>
+                <Button x:Name="ShowUnmatchedButton" Content="Highlight All Unmatched Sections" Click="ShowUnmatchedButton_Click"/>
+            </StackPanel>
+        </Border>
+        <DataGrid x:Name="ResultsGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                  SelectionMode="Single" SelectionChanged="ResultsGrid_SelectionChanged">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Status}" Value="matched - verify section">
+                            <Setter Property="Foreground" Value="Red"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Status}" Value="matched (chain) - verify section">
+                            <Setter Property="Foreground" Value="Red"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}"/>
+                <DataGridTextColumn Header="SAFI Name" Binding="{Binding SafiName}"/>
+                <DataGridTextColumn Header="Revit Section" Binding="{Binding RevitSection}"/>
+                <DataGridTextColumn Header="SAFI Section" Binding="{Binding SafiSection}"/>
+                <DataGridTextColumn Header="Offset (mm)" Binding="{Binding OffsetMm, StringFormat=N1}"/>
+                <DataGridTextColumn Header="Reason" Binding="{Binding Reason}"/>
+                <DataGridCheckBoxColumn Header="Ambiguous" Binding="{Binding Ambiguous}"/>
+                <DataGridTextColumn Header="Revit Id" Binding="{Binding RevitId}"/>
+                <DataGridTextColumn Header="SAFI Id" Binding="{Binding SafiId}"/>
+            </DataGrid.Columns>
+        </DataGrid>
     </DockPanel>
 </UserControl>

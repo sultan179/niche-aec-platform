@@ -20,7 +20,7 @@ public static class PipelineRunner
         return Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", ".."));
     }
 
-    public static async Task<List<ReconciliationRow>> RunAsync(string revitIfcPath, string safiSdnfPath, string? sectionOverridesPath = null)
+    public static async Task<List<ReconciliationRow>> RunAsync(string safiSdnfPath, string liveGeometryPath)
     {
         if (!File.Exists(PythonExe))
             throw new InvalidOperationException(
@@ -39,10 +39,10 @@ public static class PipelineRunner
             CreateNoWindow = true,
         };
         psi.ArgumentList.Add(scriptPath);
-        psi.ArgumentList.Add(revitIfcPath);
+        psi.ArgumentList.Add("");  // revit_path - unused now that liveGeometryPath always carries geometry/section
         psi.ArgumentList.Add(safiSdnfPath);
-        if (!string.IsNullOrEmpty(sectionOverridesPath))
-            psi.ArgumentList.Add(sectionOverridesPath);
+        psi.ArgumentList.Add("");  // section_overrides_path - unused, see revit_path above
+        psi.ArgumentList.Add(liveGeometryPath);
 
         using var process = Process.Start(psi)
             ?? throw new InvalidOperationException("failed to start the python process");

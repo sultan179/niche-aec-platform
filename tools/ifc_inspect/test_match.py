@@ -1,7 +1,9 @@
 """Unit tests for geometry matching and chain matching (match.py)."""
+import json
+import ifcopenshell.guid
 from match import (
     revit_to_safi, dist, pair_distance, match, build_chains, chain_distance,
-    match_chains, find_ambiguous, explain_unmatched,
+    match_chains, find_ambiguous, explain_unmatched, load_revit_live,
 )
 
 
@@ -200,3 +202,53 @@ def test_explain_unmatched_lost_tiebreak_reflects_a_real_unmatched_case():
     assert explain_unmatched(r1, [s1, s2], tolerance_m=0.5) == (
         "nearest candidate s1 is within tolerance (0.20m) but wasn't a mutual best match"
     )
+
+
+def write_live_json(tmp_path, rows):
+    path = tmp_path / "live.json"
+    path.write_text(json.dumps(rows))
+    return str(path)
+
+
+def test_load_revit_live_transforms_coords_and_compresses_guid(tmp_path):
+    raw_guid = ifcopenshell.guid.expand("36CK1ojAv5wf$AQ$syw$5p")
+    path = write_live_json(tmp_path, [{
+        "guid": raw_guid, "category": "Beam", "section": "W16X26",
+        "start_m": [0, 0, 0], "end_m": [10, 0, 0],
+    }])
+
+    elements = load_revit_live(path)
+    assert len(elements) == 1
+    e = elements[0]
+    assert e["id"] == "36CK1ojAv5wf$AQ$syw$5p"
+    assert e["category"] == "Beam"
+    assert e["section"] == "W16X26"
+    assert e["material"] is None
+    assert e["start"] == revit_to_safi(0, 0, 0)
+    assert e["end"] == revit_to_safi(10, 0, 0)
+
+
+def test_load_revit_live_preserves_null_section(tmp_path):
+    raw_guid = ifcopenshell.guid.expand("36CK1ojAv5wf$AQ$syw$5p")
+    path = write_live_json(tmp_path, [{
+        "guid": raw_guid, "category": "Column", "section": None,
+        "start_m": [1, 2, 3], "end_m": [1, 2, 10],
+    }])
+
+    elements = load_revit_live(path)
+    assert elements[0]["section"] is None
+
+
+def test_load_revit_live_filters_unknown_category(tmp_path):
+    raw_guid_1 = ifcopenshell.guid.expand("36CK1ojAv5wf$AQ$syw$5p")
+    raw_guid_2 = ifcopenshell.guid.expand("36CK1ojAv5wf$AQ$syw$Vt")
+    path = write_live_json(tmp_path, [
+        {"guid": raw_guid_1, "category": "Beam", "section": "W16X26",
+         "start_m": [0, 0, 0], "end_m": [10, 0, 0]},
+        {"guid": raw_guid_2, "category": "Grid", "section": None,
+         "start_m": [0, 0, 0], "end_m": [10, 0, 0]},
+    ])
+
+    elements = load_revit_live(path)
+    assert len(elements) == 1
+    assert elements[0]["category"] == "Beam"

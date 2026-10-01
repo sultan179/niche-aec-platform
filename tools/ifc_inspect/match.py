@@ -2,8 +2,10 @@
 Baseline per CLAUDE_INSTRUCTIONS.md §8-9: hard filter by category, then
 nearest-endpoint mutual-best matching. No ID matching — see D-013.
 """
+import json
 import math
 import pandas as pd
+import ifcopenshell.guid
 from parse_sdnf import parse_sdnf
 
 REVIT_REPORT = r"C:\Users\SultanArafat\niche-aec-platform\data\ifc\Cleaned\Kingsway Apartments - 1 floor test_report.xlsx"
@@ -36,6 +38,34 @@ def load_revit(path=REVIT_REPORT):
             "category": CATEGORY_MAP[r["ifc_class"]],
             "section": r["profiles"],
             "material": r["materials"],
+            "start": start,
+            "end": end,
+        })
+    return elements
+
+
+def load_revit_live(path):
+    """Live-geometry counterpart to load_revit() - reads a JSON file the Revit
+    add-in writes directly from the open model (LiveGeometryReader.cs), bypassing
+    the IFC export entirely (2026-10-01). Same output shape and revit_to_safi()
+    transform as load_revit(); category is already "Column"/"Beam" from the
+    add-in (it reads Structural Columns/Framing directly), not an IFC class, so
+    no CATEGORY_MAP lookup is needed here. material is always None - unused in
+    matching (out of scope since 2026-09-23) and the add-in doesn't extract it.
+    """
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    elements = []
+    for r in data:
+        if r["category"] not in ("Column", "Beam"):
+            continue
+        start = revit_to_safi(*r["start_m"])
+        end = revit_to_safi(*r["end_m"])
+        elements.append({
+            "id": ifcopenshell.guid.compress(r["guid"]),
+            "category": r["category"],
+            "section": r.get("section"),
+            "material": None,
             "start": start,
             "end": end,
         })
